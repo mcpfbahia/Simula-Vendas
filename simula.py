@@ -35,7 +35,7 @@ def carregar_dados(filepath):
 
 dados_kits = carregar_dados("precos.xlsx")
 
-# Cabeçalho sugerido
+# Cabeçalho visual
 st.markdown("""
 <div class="title-box">
     <h1>🏷️ Calculadora Inteligente de Descontos</h1>
@@ -43,7 +43,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Busca inteligente de kit
+# Busca e seleção
 busca = st.text_input("🔍 Buscar kit (ex: a-frame, pop):").lower().strip()
 kits_filtrados = dados_kits[dados_kits['DESCRICAO'].str.lower().str.contains(busca, na=False)] if busca else dados_kits
 
@@ -53,12 +53,17 @@ if kits_filtrados.empty:
 
 modelo = st.selectbox("🧱 Escolha um Kit:", kits_filtrados['DESCRICAO'].unique())
 
-# Entradas para cálculo
+# Entradas
 col1, col2 = st.columns(2)
 with col1:
     desconto = st.slider("💸 Desconto (%)", 0.0, 15.0, step=0.5)
 with col2:
-    tipo_pagamento = st.selectbox("💳 Forma de Pagamento:", ["À Vista", "Cartão de Crédito"])
+    opcoes_pagamento = {
+        "À Vista": "avista",
+        "Cartão de Crédito": "cartao"
+    }
+    forma_pagamento_exibida = st.selectbox("💳 Forma de Pagamento:", list(opcoes_pagamento.keys()))
+    tipo_pagamento = opcoes_pagamento[forma_pagamento_exibida]
 
 # Dados do kit
 kit = kits_filtrados[kits_filtrados['DESCRICAO'] == modelo].iloc[0]
@@ -68,16 +73,36 @@ peso = float(kit.get('PESO UND', 0))
 link = kit.get('LINK_KIT', '#')
 codigo = kit.get('CODIGO', 'N/A')
 
-# Cálculos corretos
+# Cálculos
 frete_estimado = (peso / 1000) * 1129.00
 preco_custo_ajustado = preco_custo - frete_estimado
 preco_final = preco_venda * (1 - desconto / 100)
-custo_indireto_pct = 0.27 if tipo_pagamento == "À Vista" else 0.32
+custo_indireto_pct = 0.27 if tipo_pagamento == "avista" else 0.32
 custo_indireto_valor = preco_final * custo_indireto_pct
 lucro = preco_final - preco_custo_ajustado - custo_indireto_valor
 margem = (lucro / preco_final) * 100 if preco_final else 0
 
-# Resultado final exibido claramente
+# Barra de desconto (semáforo)
+if desconto <= 7:
+    cor = "#d4edda"
+    texto = "🟢 Desconto seguro: margem preservada."
+    cor_texto = "#155724"
+elif 7 < desconto <= 12:
+    cor = "#fff3cd"
+    texto = "🟡 Atenção: zona de risco operacional."
+    cor_texto = "#856404"
+else:
+    cor = "#f8d7da"
+    texto = "🔴 Alerta: desconto acima de 12%, risco elevado de prejuízo."
+    cor_texto = "#721c24"
+
+st.markdown(f"""
+<div style='background-color:{cor}; padding:15px; border-radius:8px; color:{cor_texto}; font-weight: bold; text-align: center; margin-bottom:30px;'>
+    {texto}
+</div>
+""", unsafe_allow_html=True)
+
+# Resultado formatado
 st.markdown(f"""
 <div class="result-box">
     🔹 <strong>Código do Kit:</strong> {codigo}<br>
@@ -90,12 +115,28 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Alertas visuais para lucro
-if lucro < 0:
-    st.error("🚨 Lucro negativo! Considere rever o desconto.")
-elif margem < 10:
-    st.warning("⚠️ Margem de lucro baixa. Considere negociar melhor.")
-else:
-    st.success("✅ Margem saudável e rentável!")
+# Margem destacada
+st.markdown(f"""
+### 📈 Margem Calculada:
+<span style='font-size:22px; font-weight:bold; color:#336699'>{margem:.2f}%</span>
+""", unsafe_allow_html=True)
 
-st.markdown("<hr><p style='text-align:center;'>© 2025 Minha Casa Pré-Fabricada - Todos os direitos reservados</p>", unsafe_allow_html=True)
+# Avaliação da margem por forma de pagamento
+if tipo_pagamento == "avista":
+    if margem <= 7:
+        st.markdown("<div style='background-color:#d4edda; padding:15px; border-radius:8px; color:#155724; margin-bottom:30px;'>✅ Margem saudável e segura para <strong>pagamento à vista</strong>.</div>", unsafe_allow_html=True)
+    elif 7 < margem <= 10:
+        st.markdown("<div style='background-color:#fff3cd; padding:15px; border-radius:8px; color:#856404; margin-bottom:30px;'>⚠️ Atenção: margem no <strong>limite operacional</strong> para pagamento à vista.</div>", unsafe_allow_html=True)
+    else:
+        st.markdown("<div style='background-color:#f8d7da; padding:15px; border-radius:8px; color:#721c24; margin-bottom:30px;'>❌ Margem crítica: risco de <strong>prejuízo</strong> para pagamento à vista.</div>", unsafe_allow_html=True)
+
+elif tipo_pagamento == "cartao":
+    if margem <= 2:
+        st.markdown("<div style='background-color:#d4edda; padding:15px; border-radius:8px; color:#155724; margin-bottom:30px;'>✅ Margem saudável e segura para <strong>pagamento no cartão</strong>.</div>", unsafe_allow_html=True)
+    elif 2 < margem <= 5:
+        st.markdown("<div style='background-color:#fff3cd; padding:15px; border-radius:8px; color:#856404; margin-bottom:30px;'>⚠️ Atenção: margem no <strong>limite operacional</strong> para pagamento no cartão.</div>", unsafe_allow_html=True)
+    else:
+        st.markdown("<div style='background-color:#f8d7da; padding:15px; border-radius:8px; color:#721c24; margin-bottom:30px;'>❌ Margem crítica: risco de <strong>prejuízo</strong> para pagamento no cartão.</div>", unsafe_allow_html=True)
+
+# Rodapé final
+st.markdown("<hr style='margin-top:40px;'><p style='text-align:center; margin-top:10px;'>© 2025 Minha Casa Pré-Fabricada - Todos os direitos reservados</p>", unsafe_allow_html=True)
