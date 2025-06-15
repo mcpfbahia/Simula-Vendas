@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from pathlib import Path
+from urllib.parse import quote
 
 # CONFIGURAÇÃO DO APP
 st.set_page_config(page_title="🏷️ Calculadora Inteligente de Descontos", layout="centered")
@@ -53,16 +54,18 @@ if kits_filtrados.empty:
 
 modelo = st.selectbox("🧱 Escolha um Kit:", kits_filtrados['DESCRICAO'].unique())
 
-# Entradas
+# Entradas com tooltips
 col1, col2 = st.columns(2)
 with col1:
-    desconto = st.slider("💸 Desconto (%)", 0.0, 15.0, step=0.5)
+    desconto = st.slider("💸 Desconto (%)", 0.0, 15.0, step=0.5,
+                         help="Defina o percentual de desconto aplicado ao cliente.")
 with col2:
     opcoes_pagamento = {
         "À Vista": "avista",
         "Cartão de Crédito": "cartao"
     }
-    forma_pagamento_exibida = st.selectbox("💳 Forma de Pagamento:", list(opcoes_pagamento.keys()))
+    forma_pagamento_exibida = st.selectbox("💳 Forma de Pagamento:", list(opcoes_pagamento.keys()),
+                                           help="Escolha se o pagamento será à vista ou via cartão de crédito.")
     tipo_pagamento = opcoes_pagamento[forma_pagamento_exibida]
 
 # Dados do kit
@@ -82,57 +85,43 @@ custo_indireto_valor = preco_final * custo_indireto_pct
 lucro = preco_final - preco_custo_ajustado - custo_indireto_valor
 margem = (lucro / preco_final) * 100 if preco_final else 0
 
-# Alerta por nível de segurança conforme forma de pagamento
+# 🔒 Bloqueio de descontos perigosos
+if tipo_pagamento == "cartao" and desconto > 10:
+    st.error("❌ Desconto acima de 10% não é permitido para pagamento no cartão.")
+    st.stop()
+elif tipo_pagamento == "avista" and desconto > 15:
+    st.error("❌ Desconto acima de 15% não é permitido para pagamento à vista.")
+    st.stop()
+
+# Alerta visual de segurança
 if tipo_pagamento == "avista":
     if desconto <= 7:
-        cor_seg = "#d4edda"
-        texto_seg = "✅ Desconto dentro do limite seguro para pagamento à vista. Margem saudável."
-        cor_texto_seg = "#155724"
+        cor_seg, texto_seg, cor_texto_seg = "#d4edda", "✅ Desconto dentro do limite seguro para pagamento à vista. Margem saudável.", "#155724"
     elif 7 < desconto <= 10:
-        cor_seg = "#fff3cd"
-        texto_seg = "⚠️ Atenção: desconto entre 7% e 10% exige análise, margem reduzida para pagamento à vista."
-        cor_texto_seg = "#856404"
-    elif 10 < desconto <= 15:
-        cor_seg = "#f8d7da"
-        texto_seg = "❗ Cuidado: desconto elevado (acima de 10%) pode comprometer a margem em pagamento à vista."
-        cor_texto_seg = "#721c24"
+        cor_seg, texto_seg, cor_texto_seg = "#fff3cd", "⚠️ Atenção: desconto entre 7% e 10% exige análise.", "#856404"
     else:
-        cor_seg = "#f5c6cb"
-        texto_seg = "🚫 Desconto acima de 15% não recomendado para pagamento à vista."
-        cor_texto_seg = "#721c24"
-
-elif tipo_pagamento == "cartao":
+        cor_seg, texto_seg, cor_texto_seg = "#f8d7da", "❗ Desconto elevado pode comprometer a margem.", "#721c24"
+else:
     if desconto <= 2:
-        cor_seg = "#d4edda"
-        texto_seg = "✅ Desconto dentro do limite seguro para pagamento no cartão. Margem saudável."
-        cor_texto_seg = "#155724"
+        cor_seg, texto_seg, cor_texto_seg = "#d4edda", "✅ Desconto dentro do limite seguro para cartão. Margem saudável.", "#155724"
     elif 2 < desconto <= 5:
-        cor_seg = "#fff3cd"
-        texto_seg = "⚠️ Atenção: desconto entre 2% e 5% exige análise, margem reduzida para cartão de crédito."
-        cor_texto_seg = "#856404"
-    elif 5 < desconto <= 10:
-        cor_seg = "#f8d7da"
-        texto_seg = "❗ Cuidado: desconto elevado (acima de 5%) pode comprometer a margem no cartão."
-        cor_texto_seg = "#721c24"
+        cor_seg, texto_seg, cor_texto_seg = "#fff3cd", "⚠️ Atenção: desconto entre 2% e 5% exige análise.", "#856404"
     else:
-        cor_seg = "#f5c6cb"
-        texto_seg = "🚫 Desconto acima de 10% não recomendado para pagamento no cartão."
-        cor_texto_seg = "#721c24"
+        cor_seg, texto_seg, cor_texto_seg = "#f8d7da", "❗ Desconto elevado pode comprometer a margem no cartão.", "#721c24"
 
-# Exibir alerta visual
 st.markdown(f"""
 <div style='background-color:{cor_seg}; padding:15px; border-radius:8px; color:{cor_texto_seg}; font-weight: bold; text-align: center; margin-bottom:20px;'>
     {texto_seg}
 </div>
 """, unsafe_allow_html=True)
 
-# Resultado refinado
+# Resultado detalhado
 st.markdown(f"""
 <div class="result-box">
     🔹 <strong>Código do Kit:</strong> {codigo}<br>
     🔹 <strong>Modelo:</strong> {modelo}<br>
     💰 <strong>Preço de Custo (sem frete):</strong> {formatar_moeda(preco_custo_ajustado)}<br>
-    🧾 <strong>Preço de Tabela (sem desconto):</strong> <span style='color:#555'>{formatar_moeda(preco_venda)}</span><br>
+    💼 <strong>Valor Padrão de Venda:</strong> <span style='color:#555'>{formatar_moeda(preco_venda)}</span><br>
     ⬇️<br>
     🏷️ <strong>Preço com Desconto ({desconto}%):</strong> <strong style='color:#006400'>{formatar_moeda(preco_final)}</strong><br>
     📉 <strong>Lucro Líquido:</strong> {formatar_moeda(lucro)} ({margem:.2f}%)<br>
@@ -141,11 +130,39 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Margem destacada
+# 🎯 Barra de semáforo de margem
+if margem >= 20:
+    cor_barra = "green"
+elif 10 <= margem < 20:
+    cor_barra = "orange"
+else:
+    cor_barra = "red"
+
 st.markdown(f"""
-### 📈 Margem Calculada:
-<span style='font-size:22px; font-weight:bold; color:#336699'>{margem:.2f}%</span>
+<div style="margin-top: 20px;">
+    <strong>🔦 Indicador de Margem:</strong>
+    <div style="width: 100%; height: 20px; background-color: #e0e0e0; border-radius: 10px; margin-top: 5px;">
+        <div style="width: {margem:.2f}%; height: 100%; background-color: {cor_barra}; border-radius: 10px;"></div>
+    </div>
+    <p style="font-size: 16px; color: {cor_barra}; margin-top: 5px;"><strong>{margem:.2f}% de margem</strong></p>
+</div>
 """, unsafe_allow_html=True)
+
+# 📱 Geração de mensagem para WhatsApp
+msg = f"""Olá! Segue a simulação para o kit selecionado:
+
+🔹 Modelo: {modelo}
+🏷️ Desconto aplicado: {desconto}%
+💰 Preço com desconto: {formatar_moeda(preco_final)}
+📉 Lucro estimado: {formatar_moeda(lucro)} ({margem:.2f}%)
+🚚 Frete estimado: {formatar_moeda(frete_estimado)} (cliente paga direto)
+
+Link do kit: {link}
+
+Essa simulação foi gerada automaticamente pela Calculadora Inteligente de Descontos.
+"""
+url_whatsapp = f"https://api.whatsapp.com/send?text={quote(msg)}"
+st.markdown(f"[📲 Enviar simulação via WhatsApp]({url_whatsapp})", unsafe_allow_html=True)
 
 # Rodapé
 st.markdown("<hr style='margin-top:40px;'><p style='text-align:center; margin-top:10px;'>© 2025 Minha Casa Pré-Fabricada - Todos os direitos reservados</p>", unsafe_allow_html=True)
