@@ -39,7 +39,7 @@ dados_kits = carregar_dados("precos.xlsx")
 st.markdown("""
 <div class="title-box">
     <h1>🏷️ Calculadora Inteligente de Descontos</h1>
-    <p>Encontre rapidamente o preço ideal para sua negociação!</p>
+    <p>Descubra o limite seguro de desconto conforme a forma de pagamento!</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -82,33 +82,59 @@ custo_indireto_valor = preco_final * custo_indireto_pct
 lucro = preco_final - preco_custo_ajustado - custo_indireto_valor
 margem = (lucro / preco_final) * 100 if preco_final else 0
 
-# Barra de desconto (semáforo)
-if desconto <= 7:
-    cor = "#d4edda"
-    texto = "🟢 Desconto seguro: margem preservada."
-    cor_texto = "#155724"
-elif 7 < desconto <= 12:
-    cor = "#fff3cd"
-    texto = "🟡 Atenção: zona de risco operacional."
-    cor_texto = "#856404"
-else:
-    cor = "#f8d7da"
-    texto = "🔴 Alerta: desconto acima de 12%, risco elevado de prejuízo."
-    cor_texto = "#721c24"
+# Alerta por nível de segurança conforme forma de pagamento
+if tipo_pagamento == "avista":
+    if desconto <= 7:
+        cor_seg = "#d4edda"
+        texto_seg = "✅ Desconto dentro do limite seguro para pagamento à vista. Margem saudável."
+        cor_texto_seg = "#155724"
+    elif 7 < desconto <= 10:
+        cor_seg = "#fff3cd"
+        texto_seg = "⚠️ Atenção: desconto entre 7% e 10% exige análise, margem reduzida para pagamento à vista."
+        cor_texto_seg = "#856404"
+    elif 10 < desconto <= 15:
+        cor_seg = "#f8d7da"
+        texto_seg = "❗ Cuidado: desconto elevado (acima de 10%) pode comprometer a margem em pagamento à vista."
+        cor_texto_seg = "#721c24"
+    else:
+        cor_seg = "#f5c6cb"
+        texto_seg = "🚫 Desconto acima de 15% não recomendado para pagamento à vista."
+        cor_texto_seg = "#721c24"
 
+elif tipo_pagamento == "cartao":
+    if desconto <= 2:
+        cor_seg = "#d4edda"
+        texto_seg = "✅ Desconto dentro do limite seguro para pagamento no cartão. Margem saudável."
+        cor_texto_seg = "#155724"
+    elif 2 < desconto <= 5:
+        cor_seg = "#fff3cd"
+        texto_seg = "⚠️ Atenção: desconto entre 2% e 5% exige análise, margem reduzida para cartão de crédito."
+        cor_texto_seg = "#856404"
+    elif 5 < desconto <= 10:
+        cor_seg = "#f8d7da"
+        texto_seg = "❗ Cuidado: desconto elevado (acima de 5%) pode comprometer a margem no cartão."
+        cor_texto_seg = "#721c24"
+    else:
+        cor_seg = "#f5c6cb"
+        texto_seg = "🚫 Desconto acima de 10% não recomendado para pagamento no cartão."
+        cor_texto_seg = "#721c24"
+
+# Exibir alerta visual
 st.markdown(f"""
-<div style='background-color:{cor}; padding:15px; border-radius:8px; color:{cor_texto}; font-weight: bold; text-align: center; margin-bottom:30px;'>
-    {texto}
+<div style='background-color:{cor_seg}; padding:15px; border-radius:8px; color:{cor_texto_seg}; font-weight: bold; text-align: center; margin-bottom:20px;'>
+    {texto_seg}
 </div>
 """, unsafe_allow_html=True)
 
-# Resultado formatado
+# Resultado refinado
 st.markdown(f"""
 <div class="result-box">
     🔹 <strong>Código do Kit:</strong> {codigo}<br>
     🔹 <strong>Modelo:</strong> {modelo}<br>
     💰 <strong>Preço de Custo (sem frete):</strong> {formatar_moeda(preco_custo_ajustado)}<br>
-    🏷️ <strong>Preço com Desconto ({desconto}%):</strong> {formatar_moeda(preco_final)}<br>
+    🧾 <strong>Preço de Tabela (sem desconto):</strong> <span style='color:#555'>{formatar_moeda(preco_venda)}</span><br>
+    ⬇️<br>
+    🏷️ <strong>Preço com Desconto ({desconto}%):</strong> <strong style='color:#006400'>{formatar_moeda(preco_final)}</strong><br>
     📉 <strong>Lucro Líquido:</strong> {formatar_moeda(lucro)} ({margem:.2f}%)<br>
     🚚 <strong>Frete Estimado:</strong> {formatar_moeda(frete_estimado)} <em>(pago diretamente pelo cliente)</em><br>
     🔗 <a href="{link}" target="_blank">Acessar Kit</a>
@@ -121,22 +147,5 @@ st.markdown(f"""
 <span style='font-size:22px; font-weight:bold; color:#336699'>{margem:.2f}%</span>
 """, unsafe_allow_html=True)
 
-# Avaliação da margem por forma de pagamento
-if tipo_pagamento == "avista":
-    if margem <= 7:
-        st.markdown("<div style='background-color:#d4edda; padding:15px; border-radius:8px; color:#155724; margin-bottom:30px;'>✅ Margem saudável e segura para <strong>pagamento à vista</strong>.</div>", unsafe_allow_html=True)
-    elif 7 < margem <= 10:
-        st.markdown("<div style='background-color:#fff3cd; padding:15px; border-radius:8px; color:#856404; margin-bottom:30px;'>⚠️ Atenção: margem no <strong>limite operacional</strong> para pagamento à vista.</div>", unsafe_allow_html=True)
-    else:
-        st.markdown("<div style='background-color:#f8d7da; padding:15px; border-radius:8px; color:#721c24; margin-bottom:30px;'>❌ Margem crítica: risco de <strong>prejuízo</strong> para pagamento à vista.</div>", unsafe_allow_html=True)
-
-elif tipo_pagamento == "cartao":
-    if margem <= 2:
-        st.markdown("<div style='background-color:#d4edda; padding:15px; border-radius:8px; color:#155724; margin-bottom:30px;'>✅ Margem saudável e segura para <strong>pagamento no cartão</strong>.</div>", unsafe_allow_html=True)
-    elif 2 < margem <= 5:
-        st.markdown("<div style='background-color:#fff3cd; padding:15px; border-radius:8px; color:#856404; margin-bottom:30px;'>⚠️ Atenção: margem no <strong>limite operacional</strong> para pagamento no cartão.</div>", unsafe_allow_html=True)
-    else:
-        st.markdown("<div style='background-color:#f8d7da; padding:15px; border-radius:8px; color:#721c24; margin-bottom:30px;'>❌ Margem crítica: risco de <strong>prejuízo</strong> para pagamento no cartão.</div>", unsafe_allow_html=True)
-
-# Rodapé final
+# Rodapé
 st.markdown("<hr style='margin-top:40px;'><p style='text-align:center; margin-top:10px;'>© 2025 Minha Casa Pré-Fabricada - Todos os direitos reservados</p>", unsafe_allow_html=True)
